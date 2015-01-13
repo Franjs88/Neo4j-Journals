@@ -1,10 +1,21 @@
 package master.neo4j;
 
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.RelationshipType;
+
 /**
  *
  * @author fran
  */
 public class Neo4jApp {
+    
+    private static final String DB_PATH = "";    
+    GraphDatabaseService graphDb;
+    
+    private static enum RelTypes implements RelationshipType
+    {
+        HAS, IS_FRIEND, WROTE, REVIEWED
+    }
 
     public Neo4jApp(String filePath) {
         

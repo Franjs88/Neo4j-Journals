@@ -1,10 +1,10 @@
 USING PERIODIC COMMIT 1000
 LOAD CSV WITH HEADERS FROM "file:////home/fran/Proyectos/PracticaNeo4j/conferences.csv"
 AS conferences
-WITH conferences, toInt(conferences.Year) as Year, [w in split(conferences.Authors,"; ") | trim(w)] AS auths
+WITH conferences, toInt(conferences.Year) as Year, [w in split(conferences.Authors,";")] AS auths
 MERGE (p:Paper {title:conferences.Title, year:coalesce(Year,"none")})
 FOREACH (auth IN auths |
-	MERGE (a:Author {surname:auth})
+	MERGE (a:Author {surname:trim(auth)})
 	MERGE (a)-[:WROTE]->(p)
 )
 MERGE (c:Conference {name:conferences.ConferenceName,city:conferences.City,year:Year})
@@ -16,7 +16,7 @@ MERGE (rev)-[re:REVIEWED]->(p)
 USING PERIODIC COMMIT 1000
 LOAD CSV WITH HEADERS FROM "file:////home/fran/Proyectos/PracticaNeo4j/journals.csv"
 AS journals
-WITH journals, [w in split(journals.Authors,"; ") | trim(w)] AS auths
+WITH journals, [w in split(journals.Authors,";")] AS auths
 MERGE(p:Paper {title:journals.Title})
 MERGE (j:Journal {name:journals.JournalName,volume:journals.Volume})
 MERGE (j)-[r:HAS]->(p)
@@ -33,4 +33,5 @@ LOAD CSV WITH HEADERS FROM "file:////home/fran/Proyectos/PracticaNeo4j/friendshi
 AS f
 WITH f
 MERGE (rev:Reviewer {surname:f.Reviewer})
-MERGE (a:Author {surname:f.Author})-[i:IS_FRIEND]->(rev)
+MERGE (a:Author {surname:f.Author})
+MERGE (a)-[i:IS_FRIEND]->(rev)
