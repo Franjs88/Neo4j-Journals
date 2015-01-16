@@ -23,7 +23,7 @@ import org.neo4j.kernel.impl.util.StringLogger;
 public class Neo4jApp {
 
     // TODO: Cambiar a uno editable con properties
-    private static final String DB_PATH = "/opt/neo4j-community-2.1.4/";
+    private static final String DB_PATH = "/opt/neo4j-community-2.1.4/data/graph.db";
     private final GraphDatabaseService db;
 
     private final ExecutionEngine engine;
@@ -34,17 +34,29 @@ public class Neo4jApp {
     }
 
     public Neo4jApp(String filePath) {
-        this.db = new GraphDatabaseFactory().
-                newEmbeddedDatabase(DB_PATH);
+        System.out.println("filePath es = " + filePath);
+        this.db = new GraphDatabaseFactory().newEmbeddedDatabase(DB_PATH);
+        //registerShutdownHook(db);
         this.engine = new ExecutionEngine(db, StringLogger.SYSTEM);
+    }
 
+    private static void registerShutdownHook(final GraphDatabaseService graphDb) {
+        // Registers a shutdown hook for the Neo4j instance so that it
+        // shuts down nicely when the VM exits (even if you "Ctrl-C" the
+        // running application).
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                graphDb.shutdown();
+            }
+        });
     }
 
     private ExecutionResult loadConferences(String path) {
         ExecutionResult result = null;
         try (Transaction ignored = db.beginTx()) {
-            result = engine.execute("USING PERIODIC COMMIT 1000\n"
-                    + "LOAD CSV WITH HEADERS FROM \"file:////" + path + "/processed_conferences.csv\"\n"
+            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////" 
+                    + path + "/processed_conferences.csv\"\n"
                     + "AS conferences\n"
                     + "WITH conferences, toInt(conferences.Year) as Year, [w in split(conferences.Authors,\";\")] AS auths\n"
                     + "MERGE (p:Paper {title:conferences.Title, year:coalesce(Year,\"none\")})\n"
@@ -56,7 +68,9 @@ public class Neo4jApp {
                     + "MERGE (c)-[r:HAS]->(p)\n"
                     + "MERGE (rev:Reviewer {surname:conferences.Reviewer})\n"
                     + "MERGE (rev)-[re:REVIEWED]->(p)");
+            ignored.success();
         } catch (Exception e) {
+            e.printStackTrace();
             System.err.println("Transaction loadconfs failed");
         }
         return result;
@@ -65,8 +79,8 @@ public class Neo4jApp {
     private ExecutionResult loadJournals(String path) {
         ExecutionResult result = null;
         try (Transaction ignored = db.beginTx()) {
-            result = engine.execute("USING PERIODIC COMMIT 1000\n"
-                    + "LOAD CSV WITH HEADERS FROM \"file:////" + path + "/processed_journals.csv\"\n"
+            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////" 
+                    + path + "/processed_journals.csv\"\n"
                     + "AS journals\n"
                     + "WITH journals, [w in split(journals.Authors,\";\")] AS auths\n"
                     + "MERGE(p:Paper {title:journals.Title})\n"
@@ -78,7 +92,9 @@ public class Neo4jApp {
                     + ")\n"
                     + "MERGE (rev:Reviewer {surname:journals.Reviewer})\n"
                     + "MERGE (rev)-[re:REVIEWED]->(p)");
+            ignored.success();
         } catch (Exception e) {
+            e.printStackTrace();
             System.err.println("Transaction loadJournals failed");
         }
         return result;
@@ -87,20 +103,23 @@ public class Neo4jApp {
     private ExecutionResult loadFriendships(String path) {
         ExecutionResult result = null;
         try (Transaction ignored = db.beginTx()) {
-            result = engine.execute("USING PERIODIC COMMIT 1000\n"
-                    + "LOAD CSV WITH HEADERS FROM \"file:////" + path + "/processed_friendships.csv\"\n"
+            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////" 
+                    + path + "/processed_friendships.csv\"\n"
                     + "AS f\n"
                     + "WITH f\n"
                     + "MERGE (rev:Reviewer {surname:f.Reviewer})\n"
                     + "MERGE (a:Author {surname:f.Author})\n"
                     + "MERGE (a)-[i:IS_FRIEND]->(rev)");
+            ignored.success();
         } catch (Exception e) {
+            e.printStackTrace();
             System.err.println("Transaction loadFs failed");
         }
         return result;
     }
 
     private void deleteTempFiles(File[] files) {
+        System.out.println("Now we delete the temporal files");
         for (File file : files) {
             if (file.delete()) {
                 System.out.println(file.getName() + " is deleted!");
@@ -180,11 +199,11 @@ public class Neo4jApp {
      */
     private void ingestDatabase(String path) {
         ExecutionResult result = loadConferences(path);
-        System.out.println("Ingestion of conferences return: "+result.toString());
+        System.out.println("Ingestion of conferences return: \n" + result.dumpToString());
         result = loadJournals(path);
-        System.out.println("Ingestion of journals return: "+result.toString());
+        System.out.println("Ingestion of journals return: \n" + result.dumpToString());
         result = loadFriendships(path);
-        System.out.println("Ingestion of friendships return: "+result.toString());
+        System.out.println("Ingestion of friendships return: \n" + result.dumpToString());
     }
 
     /**

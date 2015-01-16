@@ -1,0 +1,11 @@
+Title,Authors,ConferenceName,Year,City,Reviewer
+Performance Evaluation of Database Replication Systems,Dhamane;Patiño Martínez;Vianello;Jiménez Peris,IDEAS,2014,Porto,red
+Transactional failure recovery for a distributed key-value store,Yousuf Ahmad;Kemme;Brondino;Patiño Martínez;Jiménez Peris,ACM/IFIP/USENIX,2013,Beijing ,blu
+A Scalable SIEM Correlation Engine and Its Application to the Olympic Games IT Infrastructure,Vianello;Gulisano;Jiménez Peris;Patiño Martínez;Torres;Diaz;Prieto,ARES,2013,Regensburg,brown
+A multi-resource load balancing algorithm for cloud cache systems,Jia;Brondino;Jiménez Peris;Patiño Martínez;Ma,SAC,2013,Coimbra,red
+STONE: A Stream-based DDoS Defense Framework,Callau Zori;Gulisano;Fu;Jiménez Peris;Papatriantafilou;Patiño Martínez,SAC,2013,Coimbra,blu
+Set Agreement and the Loneliness Failure Detector in Crash-Recovery Systems,Arévalo;Jiménez Peris;Tang,NETYS,2013,Morocco,brown
+Non-Monotonic Snapshot Isolation: Scalable and Strong Consistency for Geo-replicated Transactional Systems,Ardekani;Sutra;Shapiro,SRDS,2013,Brada,red
+Clock-SI: Snapshot Isolation for Partitioned Data Stores Using Loosely Synchronized Clocks,Du;Elnikety;Zwaenepoel,SRDS,2013,Brada,blu
+Bumper: Sheltering Transactions from Conflicts,Diegues;Romano,SRDS,2013,Brada,brown
+CumuloNimbo: Parallel-Distributed Transactional Processing,Jiménez Peris;Patiño Martínez;Brondino;Kemme;Oliveira;Pereira;Vilaça;Cruz;Ahmad,Cloud Futures,2012,Berkeley,red
