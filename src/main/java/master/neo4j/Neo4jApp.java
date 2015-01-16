@@ -57,6 +57,7 @@ public class Neo4jApp {
                     + "MERGE (rev:Reviewer {surname:conferences.Reviewer})\n"
                     + "MERGE (rev)-[re:REVIEWED]->(p)");
         } catch (Exception e) {
+            System.err.println("Transaction loadconfs failed");
         }
         return result;
     }
@@ -78,6 +79,7 @@ public class Neo4jApp {
                     + "MERGE (rev:Reviewer {surname:journals.Reviewer})\n"
                     + "MERGE (rev)-[re:REVIEWED]->(p)");
         } catch (Exception e) {
+            System.err.println("Transaction loadJournals failed");
         }
         return result;
     }
@@ -93,6 +95,7 @@ public class Neo4jApp {
                     + "MERGE (a:Author {surname:f.Author})\n"
                     + "MERGE (a)-[i:IS_FRIEND]->(rev)");
         } catch (Exception e) {
+            System.err.println("Transaction loadFs failed");
         }
         return result;
     }
@@ -176,9 +179,12 @@ public class Neo4jApp {
      * @param path
      */
     private void ingestDatabase(String path) {
-        loadConferences(path);
-        loadJournals(path);
-        loadFriendships(path);
+        ExecutionResult result = loadConferences(path);
+        System.out.println("Ingestion of conferences return: "+result.toString());
+        result = loadJournals(path);
+        System.out.println("Ingestion of journals return: "+result.toString());
+        result = loadFriendships(path);
+        System.out.println("Ingestion of friendships return: "+result.toString());
     }
 
     /**
@@ -211,9 +217,9 @@ public class Neo4jApp {
                 Logger.getLogger(Neo4jApp.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-
         // When all files have been processed we ingest the database
         ingestDatabase(path);
+        // and delete them after the ingestion
         deleteTempFiles(tempFiles);
     }
 
