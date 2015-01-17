@@ -1,0 +1,19 @@
+#Path to the directory where Neo4j graph.db folder is located
+DB_PATH=/opt/neo4j-community-2.1.4/data/graph.db
+
+#Path to the directory where CSV files are located
+path_to_csv_files=/home/fran/Proyectos/PracticaNeo4j
+
+#paperName
+Q1_param=performance evaluation of database replication systems
+
+#conferenceName
+Q2_param=ideas
+
+#autorName
+Q3_param=patiño martínez
+
+# 1)journalName
+# 2)journalVolume
+Q4_param1=ksii
+Q4_param2=8
