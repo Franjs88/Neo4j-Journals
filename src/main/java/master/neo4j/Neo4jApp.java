@@ -30,7 +30,6 @@ import org.neo4j.kernel.impl.util.StringLogger;
  */
 public class Neo4jApp {
 
-    // TODO: Cambiar a uno editable con properties
     private static String DB_PATH;
     private final GraphDatabaseService db;
 
@@ -45,7 +44,6 @@ public class Neo4jApp {
     }
 
     public Neo4jApp(String filePath) {
-        System.out.println("filePath es = " + filePath);
         this.db = new GraphDatabaseFactory().newEmbeddedDatabase(DB_PATH);
         registerShutdownHook(db);
         this.engine = new ExecutionEngine(db, StringLogger.SYSTEM);
@@ -82,7 +80,7 @@ public class Neo4jApp {
             tx.success();
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Transaction loadconfs failed");
+            System.err.println("Transaction loadconfs failed \n");
         }
         return result;
     }
@@ -106,7 +104,7 @@ public class Neo4jApp {
             tx.success();
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Transaction loadJournals failed");
+            System.err.println("Transaction loadJournals failed \n");
         }
         return result;
     }
@@ -124,18 +122,18 @@ public class Neo4jApp {
             tx.success();
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Transaction loadFs failed");
+            System.err.println("Transaction loadFs failed \n");
         }
         return result;
     }
 
     private void deleteTempFiles(File[] files) {
-        System.out.println("Now we delete the temporal files");
+        System.out.println("Now we delete the temporal files:\n");
         for (File file : files) {
             if (file.delete()) {
                 System.out.println(file.getName() + " is deleted!");
             } else {
-                System.out.println("Delete operation is failed.");
+                System.out.println("Delete operation is failed. \n");
             }
         }
     }
@@ -198,7 +196,7 @@ public class Neo4jApp {
                 bw.write(processedLine);
                 bw.newLine();
             }
-            System.out.println("File succesfully written: " + fileOutput.getAbsolutePath());
+            System.out.println("File succesfully written: " + fileOutput.getAbsolutePath() + "\n");
         }
         return fileOutput;
     }
@@ -210,11 +208,11 @@ public class Neo4jApp {
      */
     private void ingestDatabase(String path) {
         ExecutionResult result = loadConferences(path);
-        System.out.println("Ingestion of conferences return: \n" + result.dumpToString());
+        System.out.println("Ingestion of conferences return: \n" + result.dumpToString() + "\n");
         result = loadJournals(path);
-        System.out.println("Ingestion of journals return: \n" + result.dumpToString());
+        System.out.println("Ingestion of journals return: \n" + result.dumpToString() + "\n");
         result = loadFriendships(path);
-        System.out.println("Ingestion of friendships return: \n" + result.dumpToString());
+        System.out.println("Ingestion of friendships return: \n" + result.dumpToString() + "\n");
     }
 
     /**
@@ -235,8 +233,11 @@ public class Neo4jApp {
                     try {
                         tempFiles[i] = preProcessFile(file);
                         i++;
-                    } catch (IOException ex) {
-                        Logger.getLogger(Neo4jApp.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (IOException ex) {;
+                        System.err.println("Hay ficheros corruptos con nombre 'processed_*'"
+                                + " eliminelos, para poder "
+                                + "ejecutar el programa correctamente");
+                        
                     }
                 }
             }
@@ -264,9 +265,9 @@ public class Neo4jApp {
     private void writeQuery1ResultFile(ResourceIterator<Map<String, Object>> iter)
             throws IOException {
         Map<String, Object> next;
-        String paper ="";
+        String paper = "";
         ArrayList<String> authors = new ArrayList<>();
-        String reviewer ="";
+        String reviewer = "";
         String result = "Q1: ";
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
             // We append the name of the paper first
@@ -286,8 +287,8 @@ public class Neo4jApp {
             }
             result += "," + authors.toString() + "," + reviewer;
             System.out.println(
-                    "===========================\n"
-                    + "Consulta devuelve: \n"
+                    "\n===========================\n"
+                    + "Consulta 1 devuelve: \n"
                     + "===========================\n"
                     + "autor: " + authors.toString()
                     + "\n"
@@ -297,7 +298,7 @@ public class Neo4jApp {
             // We now write the result to file
             bw.write(result);
             bw.newLine();
-            System.out.println("File succesfully written: " + fout.getAbsolutePath());
+            System.out.println("File succesfully written: " + fout.getAbsolutePath() + "\n");
         }
     }
 
@@ -313,7 +314,7 @@ public class Neo4jApp {
             throws IOException {
         Map<String, Object> next;
         ArrayList<String> papers = new ArrayList<>();
-        String conference ="";
+        String conference = "";
         String result = "Q2: ";
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
             // We append the name of the conference first
@@ -333,8 +334,8 @@ public class Neo4jApp {
             }
             result += "," + papers.toString();
             System.out.println(
-                    "===========================\n"
-                    + "Consulta devuelve: \n"
+                    "\n===========================\n"
+                    + "Consulta 2 devuelve: \n"
                     + "===========================\n"
                     + "conference: " + conference
                     + "\n"
@@ -343,20 +344,27 @@ public class Neo4jApp {
             // We now write the result to file
             bw.write(result);
             bw.newLine();
-            System.out.println("File succesfully written: " + fout.getAbsolutePath());
+            System.out.println("File succesfully written: " + fout.getAbsolutePath() + "\n");
         }
     }
 
+    /**
+     * Writes down a result from Neo4j to a log file with the name of the
+     * programmer. Query RETURNS: a:Author p:Paper
+     *
+     * @param result
+     * @return
+     * @throws IOException
+     */
     private void writeQuery3ResultFile(ResourceIterator<Map<String, Object>> iter)
             throws IOException {
         Map<String, Object> next;
-        String author ="";
+        String author = "";
         ArrayList<String> papers = new ArrayList<>();
         String result = "Q3: ";
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
             // We append the surname of the author first
             if (iter.hasNext()) {
-                System.out.println("Q3 = iter.hasNext == true");
                 next = iter.next();
                 author = (String) ((Node) next.get("a")).getProperty("surname");
                 result += author;
@@ -371,8 +379,8 @@ public class Neo4jApp {
             }
             result += "," + papers.toString();
             System.out.println(
-                    "===========================\n"
-                    + "Consulta devuelve: \n"
+                    "\n===========================\n"
+                    + "Consulta 3 devuelve: \n"
                     + "===========================\n"
                     + "autor: " + author
                     + "\n"
@@ -381,7 +389,44 @@ public class Neo4jApp {
             // We now write the result to file
             bw.write(result);
             bw.newLine();
-            System.out.println("File succesfully written: " + fout.getAbsolutePath());
+            System.out.println("File succesfully written: " + fout.getAbsolutePath() + "\n");
+        }
+    }
+
+    /**
+     * Writes down a result from Neo4j to a log file with the name of the
+     * programmer. Query RETURNS: p:Paper a:Author r:Reviewer
+     *
+     * @param result
+     * @return
+     * @throws IOException
+     */
+    private void writeQuery4ResultFile(ResourceIterator<Map<String, Object>> iter)
+            throws IOException {
+        Map<String, Object> next;
+        String author;
+        String paper;
+        String reviewer;
+        String result = "Q4: ";
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
+            while (iter.hasNext()) {
+                next = iter.next();
+                paper = (String) ((Node) next.get("p")).getProperty("title");
+                author = (String) ((Node) next.get("a")).getProperty("surname");
+                reviewer = (String) ((Node) next.get("r")).getProperty("surname");
+                result += "[" + paper + ", " + author + ", " + reviewer + "]";
+                // We now write the result to file
+                bw.write(result);
+                bw.newLine();
+                // We start again
+                result = "Q4: ";
+            }
+            System.out.println(
+                    "\n===========================\n"
+                    + "Consulta 4 escrita: \n"
+                    + "==========================="
+            );
+            System.out.println("File succesfully written: " + fout.getAbsolutePath() + "\n");
         }
     }
 
@@ -390,11 +435,10 @@ public class Neo4jApp {
      * the original names.
      *
      * @param paperName
-     * @return
      * @throws java.io.IOException
      */
-    public ExecutionResult runQ1(String paperName) throws IOException {
-        ExecutionResult result = null;
+    public void runQ1(String paperName) throws IOException {
+        ExecutionResult result;
         ResourceIterator iter;
         try (Transaction tx = db.beginTx()) {
             result = engine.execute(
@@ -407,9 +451,8 @@ public class Neo4jApp {
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Transaction runQ1:"
-                    + " reviewers and authors of a given paper failed");
+                    + " reviewers and authors of a given paper failed \n");
         }
-        return result;
     }
 
     /**
@@ -417,12 +460,10 @@ public class Neo4jApp {
      * the original names.
      *
      * @param conferenceName
-     * @return
      * @throws java.io.IOException
      */
-    public ExecutionResult runQ2(String conferenceName) throws IOException {
-        ExecutionResult result = null;
-        System.out.println("Q2 Conference = " +conferenceName);
+    public void runQ2(String conferenceName) throws IOException {
+        ExecutionResult result;
         ResourceIterator iter;
         try (Transaction tx = db.beginTx()) {
             result = engine.execute(
@@ -434,9 +475,8 @@ public class Neo4jApp {
             writeQuery2ResultFile(iter);
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Transaction runQ2: conferences by name failed");
+            System.err.println("Transaction runQ2: conferences by name failed\n");
         }
-        return result;
     }
 
     /**
@@ -444,12 +484,10 @@ public class Neo4jApp {
      * the original names.
      *
      * @param autorName
-     * @return
      * @throws java.io.IOException
      */
-    public ExecutionResult runQ3(String autorName) throws IOException {
-        ExecutionResult result = null;
-        System.out.println("Q3 Autor name = " + autorName);
+    public void runQ3(String autorName) throws IOException {
+        ExecutionResult result;
         ResourceIterator iter;
         try (Transaction tx = db.beginTx()) {
             result = engine.execute(
@@ -461,9 +499,8 @@ public class Neo4jApp {
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Transaction runQ3:"
-                    + " papers written by author failed");
+                    + " papers written by author failed\n");
         }
-        return result;
     }
 
     /**
@@ -474,7 +511,22 @@ public class Neo4jApp {
      * @param journalVolume
      */
     public void runQ4(String journalName, int journalVolume) {
-
+        ExecutionResult result;
+        ResourceIterator iter;
+        try (Transaction tx = db.beginTx()) {
+            result = engine.execute(
+                    "MATCH ("
+                    + "j:Journal {volume:'" + journalVolume + "',name:'" + journalName + "'}"
+                    + ")-[:HAS]->(p:Paper)<-[:WROTE]-(a:Author)-[:IS_FRIEND]->(r:Reviewer)\n"
+                    + "RETURN p,a,r;");
+            iter = result.javaIterator();
+            tx.success();
+            writeQuery4ResultFile(iter);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Transaction runQ4:"
+                    + " Query 4 failed \n");
+        }
     }
 
     /**
