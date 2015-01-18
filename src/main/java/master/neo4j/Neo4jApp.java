@@ -3,15 +3,23 @@ package master.neo4j;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.cypher.ExecutionEngine;
 import org.neo4j.cypher.ExecutionResult;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.kernel.impl.util.StringLogger;
@@ -23,8 +31,11 @@ import org.neo4j.kernel.impl.util.StringLogger;
 public class Neo4jApp {
 
     // TODO: Cambiar a uno editable con properties
-    private static final String DB_PATH = "/opt/neo4j-community-2.1.4/data/graph.db";
+    private static String DB_PATH;
     private final GraphDatabaseService db;
+
+    // File in which results are written down
+    private final File fout = new File("Fco.JavierSanchezCarmona.log");
 
     private final ExecutionEngine engine;
 
@@ -36,7 +47,7 @@ public class Neo4jApp {
     public Neo4jApp(String filePath) {
         System.out.println("filePath es = " + filePath);
         this.db = new GraphDatabaseFactory().newEmbeddedDatabase(DB_PATH);
-        //registerShutdownHook(db);
+        registerShutdownHook(db);
         this.engine = new ExecutionEngine(db, StringLogger.SYSTEM);
     }
 
@@ -54,8 +65,8 @@ public class Neo4jApp {
 
     private ExecutionResult loadConferences(String path) {
         ExecutionResult result = null;
-        try (Transaction ignored = db.beginTx()) {
-            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////" 
+        try (Transaction tx = db.beginTx()) {
+            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////"
                     + path + "/processed_conferences.csv\"\n"
                     + "AS conferences\n"
                     + "WITH conferences, toInt(conferences.Year) as Year, [w in split(conferences.Authors,\";\")] AS auths\n"
@@ -68,7 +79,7 @@ public class Neo4jApp {
                     + "MERGE (c)-[r:HAS]->(p)\n"
                     + "MERGE (rev:Reviewer {surname:conferences.Reviewer})\n"
                     + "MERGE (rev)-[re:REVIEWED]->(p)");
-            ignored.success();
+            tx.success();
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Transaction loadconfs failed");
@@ -78,8 +89,8 @@ public class Neo4jApp {
 
     private ExecutionResult loadJournals(String path) {
         ExecutionResult result = null;
-        try (Transaction ignored = db.beginTx()) {
-            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////" 
+        try (Transaction tx = db.beginTx()) {
+            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////"
                     + path + "/processed_journals.csv\"\n"
                     + "AS journals\n"
                     + "WITH journals, [w in split(journals.Authors,\";\")] AS auths\n"
@@ -92,7 +103,7 @@ public class Neo4jApp {
                     + ")\n"
                     + "MERGE (rev:Reviewer {surname:journals.Reviewer})\n"
                     + "MERGE (rev)-[re:REVIEWED]->(p)");
-            ignored.success();
+            tx.success();
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Transaction loadJournals failed");
@@ -102,15 +113,15 @@ public class Neo4jApp {
 
     private ExecutionResult loadFriendships(String path) {
         ExecutionResult result = null;
-        try (Transaction ignored = db.beginTx()) {
-            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////" 
+        try (Transaction tx = db.beginTx()) {
+            result = engine.execute("LOAD CSV WITH HEADERS FROM \"file:////"
                     + path + "/processed_friendships.csv\"\n"
                     + "AS f\n"
                     + "WITH f\n"
                     + "MERGE (rev:Reviewer {surname:f.Reviewer})\n"
                     + "MERGE (a:Author {surname:f.Author})\n"
                     + "MERGE (a)-[i:IS_FRIEND]->(rev)");
-            ignored.success();
+            tx.success();
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Transaction loadFs failed");
@@ -167,8 +178,8 @@ public class Neo4jApp {
         String[] columStrings;
         String[] authors;
         // We create the postProcessed file
-        File fout = new File("processed_" + file.getName());
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
+        File fileOutput = new File("processed_" + file.getName());
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fileOutput, true))) {
             System.out.println("PreProcessing file" + file.getName());
             // We now read the original file to process it
             BufferedReader fileReader = new BufferedReader(new FileReader(file));
@@ -187,9 +198,9 @@ public class Neo4jApp {
                 bw.write(processedLine);
                 bw.newLine();
             }
-            System.out.println("File succesfully written: " + fout.getAbsolutePath());
+            System.out.println("File succesfully written: " + fileOutput.getAbsolutePath());
         }
-        return fout;
+        return fileOutput;
     }
 
     /**
@@ -243,45 +254,257 @@ public class Neo4jApp {
     }
 
     /**
+     * Writes down a result from Neo4j to a log file with the name of the
+     * programmer. Query RETURNS: a:Author, r:Reviewer, p:Paper
+     *
+     * @param result
+     * @return
+     * @throws IOException
+     */
+    private void writeQuery1ResultFile(ResourceIterator<Map<String, Object>> iter)
+            throws IOException {
+        Map<String, Object> next;
+        String paper ="";
+        ArrayList<String> authors = new ArrayList<>();
+        String reviewer ="";
+        String result = "Q1: ";
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
+            // We append the name of the paper first
+            if (iter.hasNext()) {
+                next = iter.next();
+                paper = (String) ((Node) next.get("p")).getProperty("title");
+                result += paper;
+                // And start to add authors and reviewers to their collections
+                authors.add((String) ((Node) next.get("a")).getProperty("surname"));
+                reviewer = (String) ((Node) next.get("r")).getProperty("surname");
+            }
+
+            // Now we iterate over the rest of the Resources
+            while (iter.hasNext()) {
+                next = iter.next();
+                authors.add((String) ((Node) next.get("a")).getProperty("surname"));
+            }
+            result += "," + authors.toString() + "," + reviewer;
+            System.out.println(
+                    "===========================\n"
+                    + "Consulta devuelve: \n"
+                    + "===========================\n"
+                    + "autor: " + authors.toString()
+                    + "\n"
+                    + "reviewer: " + reviewer + "\n"
+                    + "paper: " + paper
+            );
+            // We now write the result to file
+            bw.write(result);
+            bw.newLine();
+            System.out.println("File succesfully written: " + fout.getAbsolutePath());
+        }
+    }
+
+    /**
+     * Writes down a result from Neo4j to a log file with the name of the
+     * programmer. Query RETURNS: c:Conference p:Paper
+     *
+     * @param result
+     * @return
+     * @throws IOException
+     */
+    private void writeQuery2ResultFile(ResourceIterator<Map<String, Object>> iter)
+            throws IOException {
+        Map<String, Object> next;
+        ArrayList<String> papers = new ArrayList<>();
+        String conference ="";
+        String result = "Q2: ";
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
+            // We append the name of the conference first
+            if (iter.hasNext()) {
+                next = iter.next();
+                conference = (String) ((Node) next.get("c")).getProperty("name");
+                result += conference;
+                // And start to add papers to its collection
+                papers.add((String) ((Node) next.get("p")).getProperty("title"));
+            }
+
+            // Now we iterate over the rest of the Resources
+            while (iter.hasNext()) {
+                next = iter.next();
+                System.out.println("");
+                papers.add((String) ((Node) next.get("p")).getProperty("title"));
+            }
+            result += "," + papers.toString();
+            System.out.println(
+                    "===========================\n"
+                    + "Consulta devuelve: \n"
+                    + "===========================\n"
+                    + "conference: " + conference
+                    + "\n"
+                    + "paper: " + papers.toString()
+            );
+            // We now write the result to file
+            bw.write(result);
+            bw.newLine();
+            System.out.println("File succesfully written: " + fout.getAbsolutePath());
+        }
+    }
+
+    private void writeQuery3ResultFile(ResourceIterator<Map<String, Object>> iter)
+            throws IOException {
+        Map<String, Object> next;
+        String author ="";
+        ArrayList<String> papers = new ArrayList<>();
+        String result = "Q3: ";
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fout, true))) {
+            // We append the surname of the author first
+            if (iter.hasNext()) {
+                System.out.println("Q3 = iter.hasNext == true");
+                next = iter.next();
+                author = (String) ((Node) next.get("a")).getProperty("surname");
+                result += author;
+                // And start to add papers to its collection
+                papers.add((String) ((Node) next.get("p")).getProperty("title"));
+            }
+
+            // Now we iterate over the rest of the Resources
+            while (iter.hasNext()) {
+                next = iter.next();
+                papers.add((String) ((Node) next.get("p")).getProperty("title"));
+            }
+            result += "," + papers.toString();
+            System.out.println(
+                    "===========================\n"
+                    + "Consulta devuelve: \n"
+                    + "===========================\n"
+                    + "autor: " + author
+                    + "\n"
+                    + "paper: " + papers.toString()
+            );
+            // We now write the result to file
+            bw.write(result);
+            bw.newLine();
+            System.out.println("File succesfully written: " + fout.getAbsolutePath());
+        }
+    }
+
+    /**
+     * We must give parameters with lowercase because preprocessing has changed
+     * the original names.
      *
      * @param paperName
+     * @return
+     * @throws java.io.IOException
      */
-    public void runQ1(String paperName) {
-
+    public ExecutionResult runQ1(String paperName) throws IOException {
+        ExecutionResult result = null;
+        ResourceIterator iter;
+        try (Transaction tx = db.beginTx()) {
+            result = engine.execute(
+                    "MATCH (a:Author)-[WROTE]->(p:Paper)<-[REVIEWED]-(r:Reviewer)\n"
+                    + "WHERE p.title ='" + paperName + "' \n"
+                    + "RETURN p,a,r;");
+            iter = result.javaIterator();
+            tx.success();
+            writeQuery1ResultFile(iter);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Transaction runQ1:"
+                    + " reviewers and authors of a given paper failed");
+        }
+        return result;
     }
 
     /**
+     * We must give parameters with lowercase because preprocessing has changed
+     * the original names.
      *
      * @param conferenceName
+     * @return
+     * @throws java.io.IOException
      */
-    public void runQ2(String conferenceName) {
-
+    public ExecutionResult runQ2(String conferenceName) throws IOException {
+        ExecutionResult result = null;
+        System.out.println("Q2 Conference = " +conferenceName);
+        ResourceIterator iter;
+        try (Transaction tx = db.beginTx()) {
+            result = engine.execute(
+                    "MATCH (c:Conference)-[HAS]->(p:Paper)\n"
+                    + "WHERE c.name ='" + conferenceName + "'\n"
+                    + "RETURN c,p;");
+            iter = result.javaIterator();
+            tx.success();
+            writeQuery2ResultFile(iter);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Transaction runQ2: conferences by name failed");
+        }
+        return result;
     }
 
     /**
+     * We must give parameters with lowercase because preprocessing has changed
+     * the original names.
      *
      * @param autorName
+     * @return
+     * @throws java.io.IOException
      */
-    public void runQ3(String autorName) {
-
+    public ExecutionResult runQ3(String autorName) throws IOException {
+        ExecutionResult result = null;
+        System.out.println("Q3 Autor name = " + autorName);
+        ResourceIterator iter;
+        try (Transaction tx = db.beginTx()) {
+            result = engine.execute(
+                    "MATCH (a:Author {surname:'" + autorName + "'})-[:WROTE]->(p:Paper)\n"
+                    + "RETURN a,p;");
+            iter = result.javaIterator();
+            tx.success();
+            writeQuery3ResultFile(iter);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Transaction runQ3:"
+                    + " papers written by author failed");
+        }
+        return result;
     }
 
     /**
+     * We must give parameters with lowercase because preprocessing has changed
+     * the original names to lowercase.
      *
      * @param journalName
+     * @param journalVolume
      */
-    public void runQ4(String journalName) {
+    public void runQ4(String journalName, int journalVolume) {
 
     }
 
     /**
      *
      * @param args
+     * @throws java.io.IOException
      */
-    public static void main(String[] args) {
-        // TODO: Cambiar para que el dbpath sea un parametro
+    public static void main(String[] args) throws IOException {
+        // We load parameters from a property file
+        Properties p = new Properties();
+        p.load(new InputStreamReader(new FileInputStream(new File("Neo4jAppParams.property")), "UTF-8"));
+        for (String key : p.stringPropertyNames()) {
+            System.out.println("key=" + key + ", value=" + p.getProperty(key));
+        }
+        // We load parameters from the property file
+        DB_PATH = p.getProperty("DB_PATH");
+        String CSVPath = p.getProperty("path_to_csv_files");
+        String Q1Param = p.getProperty("Q1_param");
+        String Q2Param = p.getProperty("Q2_param");
+        String Q3Param = p.getProperty("Q3_param");
+        String Q4Param1 = p.getProperty("Q4_param1");
+        int Q4Param2 = Integer.parseInt(p.getProperty("Q4_param2"));
+
+        // Start the program
         Neo4jApp neo4jApp = new Neo4jApp(DB_PATH);
-        // TODO: Path cambiar como parametro
-        neo4jApp.populate("/home/fran/Proyectos/PracticaNeo4j");
+        neo4jApp.populate(CSVPath);
+        // We execute the queries with the given parameters
+        neo4jApp.runQ1(Q1Param);
+        neo4jApp.runQ2(Q2Param);
+        neo4jApp.runQ3(Q3Param);
+        neo4jApp.runQ4(Q4Param1, Q4Param2);
     }
 }
