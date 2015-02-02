@@ -8,7 +8,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
@@ -517,7 +516,7 @@ public class Neo4jApp {
             result = engine.execute(
                     "MATCH ("
                     + "j:Journal {volume:'" + journalVolume + "',name:'" + journalName + "'}"
-                    + ")-[:HAS]->(p:Paper)<-[:WROTE]-(a:Author)-[:IS_FRIEND]->(r:Reviewer)\n"
+                    + ")-[:HAS]->(p:Paper)<-[:WROTE]-(a:Author)-[:IS_FRIEND]->(r:Reviewer)-[:REVIEWED]->(p)\n"
                     + "RETURN p,a,r;");
             iter = result.javaIterator();
             tx.success();
